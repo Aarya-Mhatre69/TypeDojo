@@ -1,121 +1,83 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useEffect } from 'react'
+import './index.css'
+import ConfigBar    from './components/ConfigBar'
+import TypingTest   from './components/TypingTest'
+import ResultScreen from './components/ResultScreen'
+import useStore     from './store/useStore'
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const { testState, resetTest } = useStore()
+
+  // Tab + Enter = restart globally
+  useEffect(() => {
+    let tab = false
+    const dn = (e) => {
+      if (e.key === 'Tab')              { e.preventDefault(); tab = true }
+      if (e.key === 'Enter' && tab)     { e.preventDefault(); resetTest() }
+    }
+    const up = (e) => { if (e.key === 'Tab') tab = false }
+    window.addEventListener('keydown', dn)
+    window.addEventListener('keyup',   up)
+    return () => { window.removeEventListener('keydown', dn); window.removeEventListener('keyup', up) }
+  }, [resetTest])
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="app">
+      <Header onLogo={resetTest} />
 
-      <div className="ticks"></div>
+      <main className="main">
+        {testState !== 'finished' && (
+          <>
+            <ConfigBar />
+            <TypingTest />
+          </>
+        )}
+        {testState === 'finished' && <ResultScreen />}
+      </main>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      <Footer />
+    </div>
   )
 }
 
-export default App
+function Header({ onLogo }) {
+  return (
+    <header className="header">
+      <button className="logo" onClick={onLogo}>
+        <span className="logo-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20 5H4a1 1 0 00-1 1v10a1 1 0 001 1h16a1 1 0 001-1V6a1 1 0 00-1-1zm-9 9H5v-2h6v2zm8 0h-6v-2h6v2zm0-4H5V8h14v2z"/>
+          </svg>
+        </span>
+        TypeDojo
+      </button>
+      <nav className="nav">
+        {[
+          ['test',        'M20 5H4a1 1 0 00-1 1v10a1 1 0 001 1h16a1 1 0 001-1V6a1 1 0 00-1-1zm-9 9H5v-2h6v2zm8 0h-6v-2h6v2zm0-4H5V8h14v2z'],
+          ['leaderboard', 'M7.5 21H2V9h5.5v12zm7.25-18h-5.5v18h5.5V3zM22 11h-5.5v10H22V11z'],
+          ['about',       'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z'],
+        ].map(([label, path]) => (
+          <button key={label} className="nav-btn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+              <path d={path} />
+            </svg>
+            {label}
+          </button>
+        ))}
+      </nav>
+    </header>
+  )
+}
+
+function Footer() {
+  return (
+    <footer className="footer">
+      <div className="footer-links">
+        {['contact','github','discord','twitter','terms','privacy'].map(l => (
+          <button key={l}>{l}</button>
+        ))}
+      </div>
+      <span style={{ color: 'var(--bg3)' }}>TypeDojo v1.0</span>
+    </footer>
+  )
+}
