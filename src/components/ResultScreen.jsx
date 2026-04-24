@@ -5,23 +5,27 @@ import {
 } from 'recharts'
 import useStore from '../store/useStore'
 
-// animated number counter
-function Counter({ target, duration = 800 }) {
+// ── Animated counter ──────────────────────────────────────────────────────────
+function Counter({ to, duration = 900, suffix = '' }) {
   const [val, setVal] = useState(0)
   useEffect(() => {
-    let start = null
+    let raf, start
     const step = (ts) => {
       if (!start) start = ts
       const p = Math.min((ts - start) / duration, 1)
-      setVal(Math.round(p * target))
-      if (p < 1) requestAnimationFrame(step)
+      // ease-out cubic
+      const eased = 1 - Math.pow(1 - p, 3)
+      setVal(Math.round(eased * to))
+      if (p < 1) raf = requestAnimationFrame(step)
     }
-    requestAnimationFrame(step)
-  }, [target, duration])
-  return <>{val}</>
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [to, duration])
+  return <>{val}{suffix}</>
 }
 
-const ChartTip = ({ active, payload, label }) => {
+// ── Chart tooltip ─────────────────────────────────────────────────────────────
+function ChartTip({ active, payload, label }) {
   if (!active || !payload?.length) return null
   return (
     <div style={{
@@ -35,29 +39,37 @@ const ChartTip = ({ active, payload, label }) => {
   )
 }
 
+// ── ResultScreen ──────────────────────────────────────────────────────────────
 export default function ResultScreen() {
   const { results, resetTest } = useStore()
   if (!results) return null
+
   const { wpm, rawWpm, accuracy, time, chars, wpmHistory } = results
-  const chartData = wpmHistory.length ? wpmHistory : [{ time: 0, wpm: 0 }, { time, wpm }]
+  const chartData = wpmHistory?.length >= 2
+    ? wpmHistory
+    : [{ time: 0, wpm: 0 }, { time, wpm }]
 
   return (
     <div className="result-wrap">
 
-      {/* Hero stats */}
+      {/* Hero numbers */}
       <div className="result-hero">
         <div className="stat-blk">
           <span className="stat-lbl">wpm</span>
-          <span className="stat-val hero"><Counter target={wpm} duration={900} /></span>
+          <span className="stat-val hero">
+            <Counter to={wpm} duration={1000} />
+          </span>
         </div>
         <div className="stat-blk">
           <span className="stat-lbl">acc</span>
-          <span className="stat-val hero"><Counter target={accuracy} duration={700} />%</span>
+          <span className="stat-val hero">
+            <Counter to={accuracy} duration={800} suffix="%" />
+          </span>
         </div>
         <div className="result-sub">
           <div className="stat-blk">
             <span className="stat-lbl">raw</span>
-            <span className="stat-val"><Counter target={rawWpm} /></span>
+            <span className="stat-val"><Counter to={rawWpm} duration={700} /></span>
           </div>
           <div className="stat-blk">
             <span className="stat-lbl">time</span>
@@ -66,56 +78,73 @@ export default function ResultScreen() {
         </div>
       </div>
 
-      {/* WPM over time chart */}
+      <div className="result-divider" />
+
+      {/* WPM chart */}
       <div className="chart-area">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 8, right: 8, left: -28, bottom: 0 }}>
+          <LineChart data={chartData} margin={{ top: 8, right: 10, left: -28, bottom: 0 }}>
             <CartesianGrid stroke="#2c2e31" strokeDasharray="4 4" vertical={false} />
             <XAxis
               dataKey="time"
-              tick={{ fill: '#646669', fontSize: 10, fontFamily: 'monospace' }}
-              tickLine={false} axisLine={{ stroke: '#2c2e31' }}
+              tick={{ fill: '#646669', fontSize: 10, fontFamily: 'Roboto Mono, monospace' }}
+              tickLine={false}
+              axisLine={{ stroke: '#2c2e31' }}
             />
             <YAxis
-              tick={{ fill: '#646669', fontSize: 10, fontFamily: 'monospace' }}
-              tickLine={false} axisLine={false}
+              tick={{ fill: '#646669', fontSize: 10, fontFamily: 'Roboto Mono, monospace' }}
+              tickLine={false}
+              axisLine={false}
             />
-            <Tooltip content={<ChartTip />} cursor={{ stroke: '#646669', strokeWidth: 1, strokeDasharray: '3 3' }} />
-            <Line type="monotone" dataKey="wpm" stroke="#e2b714" strokeWidth={2}
-              dot={false} activeDot={{ r: 4, fill: '#e2b714', strokeWidth: 0 }} />
+            <Tooltip content={<ChartTip />}
+              cursor={{ stroke: '#646669', strokeWidth: 1, strokeDasharray: '4 4' }} />
+            <Line
+              type="monotone" dataKey="wpm"
+              stroke="#e2b714" strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 4, fill: '#e2b714', strokeWidth: 0 }}
+            />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Characters breakdown */}
+      {/* Chars breakdown */}
       <div className="chars-row">
         <span style={{ marginRight: 4 }}>characters</span>
-        <span className="char-stat-correct">{chars.correct}</span>
-        <span className="char-slash">/</span>
-        <span className="char-stat-incorrect">{chars.incorrect}</span>
-        <span className="char-slash">/</span>
-        <span style={{ color: '#646669' }}>{chars.extra}</span>
-        <span className="char-slash">/</span>
-        <span style={{ color: '#646669' }}>{chars.missed}</span>
-        <span style={{ color: '#3c3e41', fontSize: '0.72rem', marginLeft: 8 }}>
-          correct / incorrect / extra / missed
-        </span>
+        <span className="c-correct">{chars.correct}</span>
+        <span className="c-slash">/</span>
+        <span className="c-error">{chars.incorrect}</span>
+        <span className="c-slash">/</span>
+        <span style={{ color: 'var(--sub)' }}>{chars.extra}</span>
+        <span className="c-slash">/</span>
+        <span style={{ color: 'var(--sub)' }}>{chars.missed}</span>
+        <span className="c-label">correct / incorrect / extra / missed</span>
       </div>
 
       {/* Actions */}
       <div className="result-actions">
-        <button className="btn-restart primary" onClick={resetTest}>
+        <button className="btn-action primary" onClick={resetTest}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+            <path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99
+              8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112
+              18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13
+              11h7V4l-2.35 2.35z"/>
           </svg>
           next test
         </button>
-        <button className="btn-restart" onClick={resetTest}>
+        <button className="btn-action secondary" onClick={resetTest}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0
+              2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93
+              13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2
+              .76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76
+              1.58V19z"/>
           </svg>
           same test
         </button>
+        <span className="result-hint">
+          <kbd className="kbd">tab</kbd>+<kbd className="kbd">enter</kbd> to restart
+        </span>
       </div>
     </div>
   )
