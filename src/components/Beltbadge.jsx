@@ -50,4 +50,4 @@ export function BeltPill({ tier }) {
       <span>{belt.name}</span>
     </div>
   )
-}
+}   
