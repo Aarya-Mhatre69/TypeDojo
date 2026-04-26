@@ -1,63 +1,89 @@
-// ─── Word Generation ──────────────────────────────────────────────────────────
-export function generateWords(list, count, punct = false, nums = false) {
-  const pool = [...list]
-  let words = Array.from({ length: count }, () =>
-    pool[Math.floor(Math.random() * pool.length)]
-  )
-  if (nums) {
-    words = words.map(w =>
-      Math.random() < 0.15 ? String(Math.floor(Math.random() * 999) + 1) : w
-    )
+// ── Word generation ──────────────────────────────────────────────────────────
+export function generateWords(wordPool, count, punctuation, numbers) {
+  let pool = [...wordPool]
+  const picked = []
+  for (let i = 0; i < count; i++) {
+    let word = pool[Math.floor(Math.random() * pool.length)]
+    if (numbers && Math.random() < 0.15) {
+      word = String(Math.floor(Math.random() * 9999))
+    }
+    if (punctuation && Math.random() < 0.2) {
+      const puncts = [',', '.', '!', '?', ';', ':']
+      word = word + puncts[Math.floor(Math.random() * puncts.length)]
+    }
+    if (punctuation && Math.random() < 0.1) {
+      word = '"' + word + '"'
+    }
+    picked.push(word)
   }
-  if (punct) {
-    words = words.map((w, i) => {
-      if (i === words.length - 1) return w
-      const r = Math.random()
-      if (r < 0.10) return w + ','
-      if (r < 0.15) return w + '.'
-      if (r < 0.17) return w + '!'
-      if (r < 0.19) return w + '?'
-      if (r < 0.20) return w + ';'
-      return w
-    })
-  }
-  return words
+  return picked
 }
 
-// ─── Stats ────────────────────────────────────────────────────────────────────
-export const calcWPM = (correctChars, secs) =>
-  secs <= 0 ? 0 : Math.round((correctChars / 5) / (secs / 60))
+// ── WPM / accuracy ───────────────────────────────────────────────────────────
+export function calcWPM(correctChars, elapsedSeconds) {
+  if (elapsedSeconds <= 0) return 0
+  return Math.round((correctChars / 5) / (elapsedSeconds / 60))
+}
 
-export const calcRawWPM = (totalChars, secs) =>
-  secs <= 0 ? 0 : Math.round((totalChars / 5) / (secs / 60))
+export function calcAccuracy(correct, total) {
+  if (total === 0) return 100
+  return Math.round((correct / total) * 100)
+}
 
-export const calcAccuracy = (correct, total) =>
-  total === 0 ? 100 : Math.round((correct / total) * 100)
-
-export function countCorrectChars(words, history) {
-  let n = 0
-  history.forEach((typed, i) => {
-    const orig = words[i] || ''
-    for (let j = 0; j < Math.min(typed.length, orig.length); j++)
-      if (typed[j] === orig[j]) n++
+export function countCorrectChars(typedHistory, words) {
+  let count = 0
+  typedHistory.forEach((typed, i) => {
+    if (typed === words[i]) count += words[i].length + 1 // +1 for space
   })
-  return n
+  return count
 }
 
-export const countTotalChars = (history) =>
-  history.reduce((s, w) => s + w.length, 0)
+export function countTotalChars(typedHistory) {
+  return typedHistory.reduce((acc, w) => acc + w.length + 1, 0)
+}
 
-export function getCharStats(words, history) {
-  let correct = 0, incorrect = 0, extra = 0, missed = 0
-  history.forEach((typed, i) => {
-    const orig = words[i] || ''
-    const len  = Math.max(typed.length, orig.length)
+export function getCharStats(typedHistory, words) {
+  let correct = 0, incorrect = 0
+  typedHistory.forEach((typed, i) => {
+    const target = words[i] || ''
+    const len = Math.max(typed.length, target.length)
     for (let j = 0; j < len; j++) {
-      if      (j >= orig.length)  extra++
-      else if (j >= typed.length) missed++
-      else if (typed[j] === orig[j]) correct++
+      if (typed[j] === target[j]) correct++
       else incorrect++
     }
   })
-  return { correct, incorrect, extra, missed }
+  return { correct, incorrect }
+}
+
+// ── Mistake tracking ──────────────────────────────────────────────────────────
+export function getMistakeMap(typedHistory, words) {
+  const map = {} // { 'a': 3, 'b': 1, ... }
+  typedHistory.forEach((typed, i) => {
+    const target = words[i] || ''
+    const len = Math.max(typed.length, target.length)
+    for (let j = 0; j < len; j++) {
+      if (typed[j] !== target[j] && target[j]) {
+        map[target[j]] = (map[target[j]] || 0) + 1
+      }
+    }
+  })
+  return map
+}
+
+// ── Belt rank system ──────────────────────────────────────────────────────────
+export const BELTS = [
+  { name: 'White Belt',  min: 0,   max: 20,  color: '#e8e8e8', glow: '#ffffff',  emoji: '🥋', tier: 0 },
+  { name: 'Yellow Belt', min: 21,  max: 35,  color: '#f5c518', glow: '#f5c518',  emoji: '🥋', tier: 1 },
+  { name: 'Green Belt',  min: 36,  max: 50,  color: '#4caf50', glow: '#4caf50',  emoji: '🥋', tier: 2 },
+  { name: 'Blue Belt',   min: 51,  max: 70,  color: '#2196f3', glow: '#2196f3',  emoji: '🥋', tier: 3 },
+  { name: 'Red Belt',    min: 71,  max: 90,  color: '#e53935', glow: '#e53935',  emoji: '🥋', tier: 4 },
+  { name: 'Black Belt',  min: 91,  max: 9999,color: '#ffd700', glow: '#ffd700',  emoji: '🥷', tier: 5 },
+]
+
+export function getBeltForWpm(wpm) {
+  return BELTS.find(b => wpm >= b.min && wpm <= b.max) || BELTS[0]
+}
+
+export function getNextBelt(currentTier) {
+  return BELTS[Math.min(currentTier + 1, BELTS.length - 1)]
 }
