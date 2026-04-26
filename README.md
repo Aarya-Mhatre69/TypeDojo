@@ -21,13 +21,6 @@ Most typing test clones are pixel-for-pixel Monkeytype copies. TypeDojo isn't. I
 
 ---
 
-## 🖥️ Preview
-
-![TypeDojo Screenshot](./public/preview.png)
-> _Add a screenshot at `public/preview.png` after your first deploy_
-
----
-
 ## 🚀 Getting started
 
 ### Prerequisites
